@@ -1,4 +1,4 @@
-# YacineKernel V1
+# YacineKernel V1 - y2q
 android_kernel_samsung_snapdragon865
 
 ## About Kernel
