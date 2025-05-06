@@ -19,8 +19,9 @@ android_kernel_samsung_snapdragon865
 - SusFS
 - KernelSU-Next
 ## CONTIRBUTORS
- -thanks to android artisan for thi thread
- -yacinegti-DZ
- -sexynos990 for his patches 
+- ANDROID ARTISAN 
+- SEXYNOS990
+- YACINEGTI-DZ
+  
 
 ## thanks to everyones who collaborated into this project
