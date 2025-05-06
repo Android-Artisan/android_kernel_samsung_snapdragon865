@@ -14,6 +14,7 @@ android_kernel_samsung_snapdragon865
 - Fully open source
 
 ## Comming Soon
+- build.sh and build_all.sh
 - Auto Build in 45-55 minutes for all devices with Github Actions thanks to Windblade-Furisode
 - SusFS
 - KernelSU-Next
