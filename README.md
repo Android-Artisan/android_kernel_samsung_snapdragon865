@@ -18,3 +18,9 @@ android_kernel_samsung_snapdragon865
 - Auto Build in 45-55 minutes for all devices with Github Actions thanks to Windblade-Furisode
 - SusFS
 - KernelSU-Next
+## CONTIRBUTORS
+ -thanks to android artisan for thi thread
+ -yacinegti-DZ
+ -sexynos990 for his patches 
+
+## thanks to everyones who collaborated into this project
