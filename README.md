@@ -4,7 +4,7 @@ android_kernel_samsung_snapdragon865
 ## About Kernel
 - Linux 4.19.113
 - Name "People's Front"
-- Display Version "4.19.113-YacineKRNL-v1"
+- Display Version "4.19.113-YacineKRNL-v1-y2q"
 
 ## Features
 - OneUI 7.x support
