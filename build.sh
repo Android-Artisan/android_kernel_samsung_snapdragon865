@@ -2,100 +2,132 @@
 
 set -e
 
-# =============================
-# Parse Arguments
-# =============================
+# ===================================
+# Help / Usage Function
+# ===================================
+show_usage() {
+    cat << EOF
+Usage: $(basename "$0") [options]
 
-while getopts "m:" opt; do
-  case "$opt" in
-    m) DEVICE_CODENAME="$OPTARG" ;;
-    *) echo "Usage: $0 -m x1q"; exit 1 ;;
-  esac
+Options:
+    -m, --model [value]    Specify the device model (only 'x1q' is supported)
+    -h, --help             Show this help message
+
+Example:
+    ./$(basename "$0") -m x1q
+EOF
+    exit 1
+}
+
+# ===================================
+# Argument Parsing
+# ===================================
+DEVICE_CODENAME=""
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -m|--model)
+            DEVICE_CODENAME="$2"
+            shift 2
+            ;;
+        -h|--help)
+            show_usage
+            ;;
+        *)
+            echo "Error: Unknown option: $1"
+            show_usage
+            ;;
+    esac
 done
 
-if [ -z "$DEVICE_CODENAME" ]; then
-  echo "Error: Device codename not specified."
-  echo "Usage: $0 -m x1q"
-  exit 1
+# Validate codename
+if [[ -z "$DEVICE_CODENAME" ]]; then
+    echo "Error: No device model specified."
+    show_usage
 fi
 
-if [ "$DEVICE_CODENAME" != "x1q" ]; then
-  echo "Error: Invalid device codename. Only 'x1q' is supported."
-  exit 1
+if [[ "$DEVICE_CODENAME" != "x1q" ]]; then
+    echo "Error: Invalid device model. Only 'x1q' is supported."
+    exit 1
 fi
 
-# =============================
-# Toolchain Setup
-# =============================
+# ===================================
+# Directory & Toolchain Setup
+# ===================================
 
-TOOLCHAIN_DIR="$(pwd)/toolchains"
-GCC_DIR="$TOOLCHAIN_DIR/gcc"
+ROOT_DIR="$(pwd)"
+OUTPUT_DIR="$ROOT_DIR/out"
+TOOLCHAIN_DIR="$ROOT_DIR/toolchains"
 CLANG_DIR="$TOOLCHAIN_DIR/clang"
+GCC_DIR="$TOOLCHAIN_DIR/gcc"
 
-GCC_URL="https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/+archive/refs/heads/master.tar.gz"
-CLANG_URL="https://releases.llvm.org/10.0.0/clang+llvm-10.0.0-x86_64-linux-gnu-ubuntu-18.04.tar.xz"
-
-echo "[INFO] Checking and downloading toolchains if needed..."
-mkdir -p "$TOOLCHAIN_DIR"
-
-if [ ! -d "$GCC_DIR/bin" ]; then
-  echo "[INFO] Downloading GCC toolchain..."
-  mkdir -p "$GCC_DIR"
-  curl -L "$GCC_URL" | tar -xz -C "$GCC_DIR"
-fi
-
-if [ ! -d "$CLANG_DIR/bin" ]; then
-  echo "[INFO] Downloading Clang 10.0 toolchain..."
-  curl -LO "$CLANG_URL"
-  tar -xf clang+llvm-10.0.0-x86_64-linux-gnu-ubuntu-18.04.tar.xz
-  mv clang+llvm-10.0.0-x86_64-linux-gnu-ubuntu-18.04 "$CLANG_DIR"
-  rm clang+llvm-10.0.0-x86_64-linux-gnu-ubuntu-18.04.tar.xz
-fi
-
-GCC_TOOLCHAIN="$GCC_DIR/bin/aarch64-linux-android-"
-CLANG_PATH="$CLANG_DIR/bin/clang"
+CLANG_BIN="$CLANG_DIR/bin"
+CLANG_PATH="$CLANG_BIN/clang"
 CLANG_TRIPLE="aarch64-linux-gnu-"
+GCC_TOOLCHAIN="$GCC_DIR/bin/aarch64-linux-android-"
 
-# =============================
-# Output Setup
-# =============================
-
-OUTPUT_DIR="$(pwd)/out"
 mkdir -p "$OUTPUT_DIR"
+
+# ===================================
+# Download Clang if Missing
+# ===================================
+
+if [ ! -f "$CLANG_BIN/clang-14" ]; then
+    echo "-----------------------------------------------"
+    echo "[INFO] Clang toolchain not found! Downloading..."
+    echo "-----------------------------------------------"
+    rm -rf "$CLANG_DIR"
+    mkdir -p "$CLANG_DIR"
+    pushd "$CLANG_DIR" > /dev/null
+
+    curl -LJO https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/tags/android-13.0.0_r13/clang-r450784d.tar.gz
+    tar -xf android-13.0.0_r13-clang-r450784d.tar.gz
+    rm -f android-13.0.0_r13-clang-r450784d.tar.gz
+
+    echo "[INFO] Clang toolchain setup complete."
+    echo "-----------------------------------------------"
+    popd > /dev/null
+fi
+
+# ===================================
+# Export Environment
+# ===================================
 export ARCH=arm64
 
-# =============================
+# ===================================
 # Kernel Build
-# =============================
+# ===================================
 
-echo "[INFO] Starting build for device: $DEVICE_CODENAME"
+echo "[INFO] Starting kernel build for $DEVICE_CODENAME..."
 
-make -C "$(pwd)" \
-  O="$OUTPUT_DIR" \
-  DTC_EXT="$(pwd)/tools/dtc" \
-  CONFIG_BUILD_ARM64_DT_OVERLAY=y \
-  CLANG_TRIPLE="$CLANG_TRIPLE" \
-  CROSS_COMPILE="$GCC_TOOLCHAIN" \
-  CC="$CLANG_PATH" \
-  vendor/"${DEVICE_CODENAME}"_chn_hkx_defconfig
+make -C "$ROOT_DIR" \
+    O="$OUTPUT_DIR" \
+    DTC_EXT="$ROOT_DIR/tools/dtc" \
+    CONFIG_BUILD_ARM64_DT_OVERLAY=y \
+    CLANG_TRIPLE="$CLANG_TRIPLE" \
+    CROSS_COMPILE="$GCC_TOOLCHAIN" \
+    CC="$CLANG_PATH" \
+    vendor/"$DEVICE_CODENAME"_chn_openx_defconfig
 
-make -C "$(pwd)" \
-  O="$OUTPUT_DIR" \
-  DTC_EXT="$(pwd)/tools/dtc" \
-  CONFIG_BUILD_ARM64_DT_OVERLAY=y \
-  CLANG_TRIPLE="$CLANG_TRIPLE" \
-  CROSS_COMPILE="$GCC_TOOLCHAIN" \
-  CC="$CLANG_PATH" -j$(nproc)
+make -C "$ROOT_DIR" \
+    O="$OUTPUT_DIR" \
+    DTC_EXT="$ROOT_DIR/tools/dtc" \
+    CONFIG_BUILD_ARM64_DT_OVERLAY=y \
+    CLANG_TRIPLE="$CLANG_TRIPLE" \
+    CROSS_COMPILE="$GCC_TOOLCHAIN" \
+    CC="$CLANG_PATH" -j$(nproc)
 
 echo "[INFO] Kernel build complete."
 
-# =============================
-# ZIP Build
-# =============================
+# ===================================
+# Build Flashable ZIP
+# ===================================
 
-echo "[INFO] Building flashable zip..."
+echo "[INFO] Packaging flashable zip..."
+
 MODEL="$DEVICE_CODENAME"
-ZIP_DIR="build/out/$MODEL/zip"
+ZIP_OUT_DIR="$ROOT_DIR/build/out/$MODEL"
+ZIP_DIR="$ZIP_OUT_DIR/zip"
 FILES_DIR="$ZIP_DIR/files"
 META_DIR="$ZIP_DIR/META-INF/com/google/android"
 
@@ -104,18 +136,17 @@ mkdir -p "$META_DIR"
 
 cp "$OUTPUT_DIR/arch/arm64/boot/Image" "$FILES_DIR/boot.img" || echo "[WARN] boot.img not found"
 cp "$OUTPUT_DIR/dtbo.img" "$FILES_DIR/dtbo.img" || echo "[WARN] dtbo.img not found"
-cp build/update-binary "$META_DIR/update-binary"
-cp build/updater-script "$META_DIR/updater-script"
+cp "$ROOT_DIR/build/update-binary" "$META_DIR/update-binary"
+cp "$ROOT_DIR/build/updater-script" "$META_DIR/updater-script"
 
-DEFCONFIG_PATH="arch/arm64/configs/vendor/x1q_chn_hkx_defconfig"
+DEFCONFIG_PATH="$ROOT_DIR/arch/arm64/configs/vendor/x1q_chn_hkx_defconfig"
 version=$(grep -o 'CONFIG_LOCALVERSION="[^"]*"' "$DEFCONFIG_PATH" | cut -d '"' -f 2)
-version=${version:1}
+version="${version:1}"
 DATE=$(date +"%d-%m-%Y_%H-%M-%S")
-
-NAME="${version}_${DEVICE_CODENAME}_${DATE}_UNOFFICIAL.zip"
+ZIP_NAME="${version}_${DEVICE_CODENAME}_UNOFFICIAL.zip"
 
 pushd "$ZIP_DIR" > /dev/null
-zip -r -qq "../$NAME" .
+zip -r -qq "../$ZIP_NAME" .
 popd > /dev/null
 
-echo "[INFO] ZIP created: build/out/$MODEL/$NAME"
+echo "[INFO] Flashable zip created at: build/out/$MODEL/$ZIP_NAME"
