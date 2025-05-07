@@ -107,7 +107,7 @@ make -C "$ROOT_DIR" \
     CLANG_TRIPLE="$CLANG_TRIPLE" \
     CROSS_COMPILE="$GCC_TOOLCHAIN" \
     CC="$CLANG_PATH" \
-    vendor/"$DEVICE_CODENAME"_chn_openx_defconfig
+    vendor/"$DEVICE_CODENAME"_chn_hkx_defconfig
 
 make -C "$ROOT_DIR" \
     O="$OUTPUT_DIR" \
